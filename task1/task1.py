@@ -6,12 +6,17 @@ from httpx import Client
 from urllib3.util import Url
 
 
+def prevalidate_env_variables():
+    assert os.getenv("APP_ID"), "Укажите VK API App ID в переменную окружения APP_ID"
+    assert os.getenv("GROUP_ID"), "Укажите ID группы в переменную окружения GROUP_ID"
+    assert os.getenv("POSTS_DIR_PATH"), "Укажите путь для папки и архива в переменную окружения POSTS_DIR_PATH"
+
+
 def initialize_api() -> Client:
     """
     Иницализация клиента httpx для VK API
     :return: кортеж состоящий из клиента и токена доступа
     """
-    assert os.getenv("APP_ID"), "Укажите VK API App ID"
 
     if not (token := os.getenv("ACCESS_TOKEN")):
         print("Перейдите` по ссылке:")
@@ -65,10 +70,21 @@ def fetch_posts(client: Client, group_id: str, count: int = 100, min_length: int
 
 
 def __build_url(post: dict) -> Url:
+    """
+    Построить URL из данных поста
+    :param post: данные поста
+    :return: объект `urllib3.util.Url` с URL поста
+    """
     return Url(scheme="https", host="vk.com", path=f"wall{post['owner_id']}_{post['id']}")
 
 
 def generate_directory(dir_path: str, posts: list[dict], index_path: str = "./index.txt"):
+    """
+    Сгенерировать директорию с текстовыми файлами постов
+    :param dir_path: путь до директории
+    :param posts: список постов
+    :param index_path: путь до index файла
+    """
     if not os.path.isdir(dir_path):
         os.mkdir(dir_path)
     indexes = []
@@ -85,15 +101,19 @@ def generate_directory(dir_path: str, posts: list[dict], index_path: str = "./in
 
 
 def archive_directory(dir_path: str) -> None:
+    """
+    Заархивировать директорию
+    :param dir_path: путь до директории
+    """
     shutil.make_archive(dir_path, 'zip', dir_path)
     shutil.rmtree(dir_path)
 
 
 def main():
+    prevalidate_env_variables()
     client = initialize_api()
-    assert os.getenv("GROUP_ID"), "Укажите ID группы"
     posts = fetch_posts(client, group_id=os.getenv("GROUP_ID"))
-    dir_path = os.getenv("DIR_PATH", "./posts")
+    dir_path = os.getenv("POSTS_DIR_PATH")
     generate_directory(dir_path, posts)
     archive_directory(dir_path)
 

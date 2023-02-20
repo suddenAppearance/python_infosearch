@@ -61,7 +61,7 @@ def fetch_posts(client: Client, group_id: str, count: int = 100, min_length: int
                 posts.append(post)
         offset += 100
 
-    return posts
+    return posts[:100]
 
 
 def __build_url(post: dict) -> Url:

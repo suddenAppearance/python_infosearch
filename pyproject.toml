@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "python-infosearch"
+version = "0.1.0"
+description = "Information search course tasks"
+authors = ["Damir Kuzovatov <kuz.damir.01@gmail.com>"]
+readme = "README.md"
+packages = [{include = "python_infosearch"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+httpx = "^0.23.3"
+urllib3 = "^1.26.14"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

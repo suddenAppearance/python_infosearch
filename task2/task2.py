@@ -53,7 +53,7 @@ def clear(dir_path):
 
 def preprocess_text(text: str) -> str:
     pattern = re.compile(r"[^А-Яа-я ]")
-    return re.sub(pattern, '', text)
+    return re.sub(pattern, ' ', text)
 
 
 def tokenize(text: str, morph: MorphAnalyzer) -> dict[str, set[str]]:

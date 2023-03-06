@@ -18,6 +18,9 @@ def init_morph() -> MorphAnalyzer:
     return MorphAnalyzer()
 
 
+morph = init_morph()
+
+
 def print_help_message():
     print(
         """
@@ -79,7 +82,9 @@ def search(query: str, index: dict[str, dict[str, set | int]]) -> set[str]:
 
         return result
 
-    return index[tokens[0]]["documents"] if index.get(tokens[0]) else set()
+    words: list[Parse] = morph.parse(tokens[0])
+    word = words[0].normal_form
+    return index[word]["documents"] if index.get(word) else set()
 
 
 if __name__ == '__main__':

@@ -2,7 +2,8 @@ import math
 import os
 import re
 import zipfile
-from collections import Counter
+from collections import Counter, defaultdict
+from typing import Literal
 
 from pymorphy2 import MorphAnalyzer
 from pymorphy2.analyzer import Parse
@@ -109,12 +110,28 @@ def get_words_set_per_doc(docs: list[str]) -> list[set[str]]:
     return [set(doc.split()) for doc in docs]
 
 
+def load_lemmes(lemmes_path: str) -> set[str]:
+    """
+    Загрузить леммы из файла
+
+    :param lemmes_path: путь до файла с леммами.
+    :return: множество лемм
+    """
+    with open(lemmes_path, "r", encoding="utf8") as f:
+        return {line.split()[0] for line in f.readlines()}
+
+
+def load_index(index_path: str) -> dict[str, str]:
+    with open(index_path, "r", encoding="utf8") as f:
+        return {filename: link for filename, link in (link.split() for link in f.readlines())}
+
+
 def get_tf_idf(text: str, docs: list[set[str]]) -> list[tuple[str, float, int]]:
     """
     Получить TF-IDF текста. Предполагается, что `text` это документ
 
     :param text: текст документа, для которого нужно посчитать TF-IDF.
-    :param docs: список множества слов в документах
+    :param docs: список множества слов в документах.
     :return: список кортежей, каждый из которых представляет собой: токен, tf, idf.
     """
 
@@ -126,46 +143,66 @@ def get_tf_idf(text: str, docs: list[set[str]]) -> list[tuple[str, float, int]]:
 
     # подсчет IDF
     token_entries = {token: len([doc for doc in docs if token in doc]) for token in tokens_set}
-    idfs = {token: math.log10(len(docs) / token_entries[token]) for token in tokens_set}
+    idfs = {token: math.log10(len(docs) / token_entries[token]) if token_entries[token] else 0 for token in tokens_set}
 
     return [(token, tfs[token] / len(tokens), idfs[token]) for token in tokens_set]
 
 
-def write_tf_idf(path: str, tf_idfs: list[tuple[str, float, int]]):
-    """
-    Записать результаты
+def generate_vectors(
+        tf_idfs_path: str, lemmes: list[str],
+        prefix: Literal["lemmes", "tokens"] = "lemmes"
+):
+    tf_idfs = {}
+    for file in os.listdir(tf_idfs_path):
+        if file.startswith(prefix):
+            with open(os.path.join(tf_idfs_path, file), "r", encoding="utf8") as f:
+                key = file.lstrip(prefix)
+                tf_idfs[key] = defaultdict(float)
+                for line in f.readlines():
+                    token, tf, idf = line.split()
+                    tf_idfs[key][lemmes.index(token)] = float(tf) * float(idf)
 
-    :param path:
-    :return:
-    """
-    with open(path, "w", encoding="utf8") as f:
-        f.writelines([" ".join(str(i) for i in line) + "\n" for line in tf_idfs])
+    return tf_idfs
 
 
-if __name__ == "__main__":
+def get_cosine_similarity(vec1: dict[int, float], vec2: dict[int, float]):
+    return (
+            sum(value * vec2[key] for key, value in vec1.items()) /
+            (
+                    sum(value ** 2 for value in vec1.values()) ** 0.5
+                    * sum(value ** 2 for value in vec2.values()) ** 0.5
+            )
+    )
+
+
+if __name__ == '__main__':
+    print("Загрузка индексов")
     prevalidate_env_variables()
     dir_path = os.getenv("POSTS_DIR_PATH")
-
     morph = init_morph()
 
     tf_idfs_path = os.getenv("TF_IDFS_PATH")
 
+    lemmes_set = load_lemmes(os.getenv("LEMMES_PATH"))
+    index = load_index("index.txt")
     extract_archive(dir_path)
     texts = get_all_texts(dir_path)
+
     texts_words = get_words_set_per_doc(list(texts.values()))
-
-    if not os.path.isdir(tf_idfs_path):
-        os.mkdir(tf_idfs_path)
-
-    # считаем tf-idf для терминов
-    for filename, text in texts.items():
-        tf_idf = get_tf_idf(text, texts_words)
-        write_tf_idf(os.path.join(tf_idfs_path, "tokens" + filename), tf_idf)
+    lemmes = list(lemmes_set)
+    tf_idfs = generate_vectors(os.getenv("TF_IDFS_PATH"), lemmes)
 
     normalized_texts = {filename: normalize(text, morph) for filename, text in texts.items()}
     normalized_texts_words = get_words_set_per_doc(list(normalized_texts.values()))
 
-    # считаем tf-idf для лемм
-    for filename, text in normalized_texts.items():
-        tf_idf = get_tf_idf(text, normalized_texts_words)
-        write_tf_idf(os.path.join(tf_idfs_path, "lemmes" + filename), tf_idf)
+    while (query := normalize(input("Введите запрос: "), morph)) != "":
+        query_tf_idf = {
+            lemmes.index(token): float(tf) * float(idf) for token, tf, idf in get_tf_idf(query, normalized_texts_words)
+        }
+        similarities = {doc: get_cosine_similarity(query_tf_idf, tf_idf) for doc, tf_idf in tf_idfs.items()}
+
+        sorted_similarities = list(sorted(similarities.items(), key=lambda s: -s[1]))
+        for i, similarity in enumerate(sorted_similarities[:5]):
+            print(f"{i + 1}. {index[similarity[0]]} (сходство: {similarity[1]})")
+
+        print()

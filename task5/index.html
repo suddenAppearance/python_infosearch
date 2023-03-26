@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Поиск по косинусному расстоянию.</title>
+    <style>
+        .search-container {
+            display: flex;
+            justify-content: center;
+            align-content: center;
+            align-items: center;
+            width: 100vw;
+            height: 100%;
+        }
+
+        .empty {
+            position: absolute;
+        }
+
+        .container-row {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container-row .item {
+            margin: 10px 0 0 0;
+            display: flex;
+        }
+
+        .search-input {
+            width: 100%;
+            border: none;
+            border-bottom-left-radius: 10px;
+            border-top-left-radius: 10px;
+            border-right: solid 1px gray;
+            margin-left: 10px;
+            font-size: 20px !important;
+            outline: none;
+        }
+
+        .search-heading {
+            font-size: 70px;
+            color: gray;
+        }
+
+        .search-row {
+            width: 30%;
+            margin: 5px 5px;
+            border: solid 1px gray;
+            border-radius: 20px;
+        }
+
+        .search-confirm {
+            padding: 0 5px;
+            height: 25px;
+            cursor: pointer;
+            justify-items: center;
+        }
+
+        .search-results {
+            display: flex;
+            flex-direction: column;
+            margin-top: 20px
+        }
+
+        .search-result {
+            display: flex;
+            flex-direction: row;
+            margin-top: 5px;
+        }
+
+        .result-link {
+            color: blue;
+        }
+
+        .result-similarity {
+            margin-left: 10px;
+            color: gray;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+<div class="search-container empty" id="search-container">
+    <div class="container-row">
+        <div class="item search-row">
+            <input class="search-input" type="text" id="search-input"/>
+            <div class="search-confirm" onclick="search()">
+                <svg focusable="false" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+                     viewBox="0 0 24 24">
+                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z">
+                    </path>
+                </svg>
+            </div>
+        </div>
+        <div class="search-results" id="results">
+        </div>
+    </div>
+
+</div>
+</body>
+<script>
+    const search = () => {
+        const searchInput = document.getElementById("search-input")
+        axios.get(
+            "/search/",
+            {
+                params: {
+                    "query": searchInput.value
+                }
+            }
+        ).then(function (response) {
+                rerender(response)
+            }
+        ).catch(function (response) {
+                console.log(response)
+            }
+        )
+
+    }
+
+    const rerender = (results) => {
+        const searchContainer = document.getElementById("search-container")
+        const searchResults = document.getElementById("results")
+
+        // clear older results
+        while (searchResults.firstChild) {
+            searchResults.removeChild(searchResults.lastChild)
+        }
+        if (results.data?.length) {
+            searchContainer.classList.remove("empty")
+            results.data.forEach((result) => {
+                if (Math.round(result[1] * 100) === 0){
+                    return
+                }
+                const div = document.createElement("div")
+                div.classList.add("search-result")
+
+                // link to result
+                const a = document.createElement("a")
+                a.classList.add("result-link")
+                a.href = result[0]
+                a.innerText = result[0]
+
+                // similarity result
+                const similarityDiv = document.createElement("div")
+                similarityDiv.classList.add("result-similarity")
+                similarityDiv.innerText = Math.round(result[1] * 100) + "%"
+
+                div.appendChild(a)
+                div.appendChild(similarityDiv)
+                searchResults.appendChild(div)
+            })
+        } else {
+            searchContainer.classList.add("empty")
+        }
+    }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.3.4/axios.min.js"
+        integrity="sha512-LUKzDoJKOLqnxGWWIBM4lzRBlxcva2ZTztO8bTcWPmDSpkErWx0bSP4pdsjNH8kiHAUPaT06UXcb+vOEZH+HpQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</html>

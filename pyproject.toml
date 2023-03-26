@@ -10,6 +10,8 @@ python = "^3.10"
 httpx = "^0.23.3"
 urllib3 = "^1.26.14"
 pymorphy2 = "^0.9.1"
+fastapi = "^0.95.0"
+uvicorn = "^0.21.1"
 
 
 [build-system]
